@@ -1,0 +1,4 @@
+name = Election Endorser Field
+description = A field type to specify endorsers (proposers / seconders) for election candidates.
+core = 7.x
+package = Election

@@ -1,0 +1,227 @@
+<?php
+/**
+ * Main module file for the Endorser Field module.
+ */
+
+/**
+ * Implements hook_field_info().
+ */
+function election_endorser_field_info() {
+  return array(
+    'election_endorser' => array(
+      'label' => t('Endorser'),
+      'description' => t("A field type to specify endorsers (proposers / seconders) for election candidates."),
+      'default_widget' => 'election_endorser_field',
+      'default_formatter' => 'election_endorser_default',
+      'default_token_formatter' => 'election_endorser_default',
+    ),
+  );
+}
+
+/**
+ * Implements hook_theme().
+ */
+function election_endorser_theme() {
+  return array(
+    'election_endorser' => array(
+      'render element' => 'element',
+    ),
+  );
+}
+
+/**
+ * FAPI theme for the endorser field element.
+ */
+function theme_election_endorser($variables) {
+  $element = $variables['element'];
+  $output = '';
+  $output .= '<div class="election-endorser-field clearfix">';
+  $output .= '<div class="election-endorser-field-name election-endorser-field-column" style="float:left;margin-right:0.5em;">'. drupal_render($element['name']) .'</div>';
+  $output .= '<div class="election-endorser-field-mail election-endorser-field-column" style="float:left;margin-right:0.5em;">'. drupal_render($element['mail']) .'</div>';
+  $output .= '</div>';
+  return $output;
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function election_endorser_field_widget_info() {
+  return array(
+    'election_endorser' => array(
+      'label' => t('Endorser'),
+      'description' => t('Widget for election candidate endorsers.'),
+      'field types' => array('election_endorser'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_element_info().
+ */
+function election_endorser_element_info() {
+  $elements = array();
+  $elements['election_endorser'] =  array(
+    '#input' => TRUE,
+    '#process' => array('election_endorser_field_process'),
+    '#theme' => 'election_endorser',
+    '#theme_wrappers' => array('form_element'),
+  );
+  return $elements;
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function election_endorser_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $base) {
+  $element = $base + array(
+    '#type' => $instance['widget']['type'],
+    '#default_value' => isset($items[$delta]) ? $items[$delta] : '',
+  );
+  return $element;
+}
+
+/**
+ * Process the endorser element before displaying the field.
+ *
+ * The $fields array is in $complete_form['#field_info'][$element['#field_name']].
+ */
+function election_endorser_field_process($element, $form_state, $complete_form) {
+  $instance = field_widget_instance($element, $form_state);
+  $settings = $instance['settings'];
+  $element['name'] = array(
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#maxlength' => 255,
+    '#title' => t('Name'),
+    '#required' => ($element['#delta'] == 0) ? $element['#required'] : FALSE,
+    '#default_value' => isset($element['#value']['name']) ? $element['#value']['name'] : NULL,
+  );
+  $element['mail'] = array(
+    '#type' => module_exists('elements') ? 'emailfield' : 'textfield',
+    '#size' => 30,
+    '#maxlength' => 255,
+    '#title' => t('E-mail address'),
+    '#required' => ($element['#delta'] == 0) ? $element['#required'] : FALSE,
+    '#default_value' => isset($element['#value']['mail']) ? $element['#value']['mail'] : NULL,
+  );
+
+  $element['#required'] = FALSE;
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_validate().
+ *
+ * Possible error codes:
+ * - 'election_endorser_missing_name':  The name has not been specified.
+ * - 'election_endorser_missing_mail': The e-mail address has not been
+ *                                      specified.
+ * - 'election_endorser_invalid_mail': The e-mail address is not valid.
+ */
+function election_endorser_field_validate($obj_type, $object, $field, $instance, $langcode, $items, &$errors) {
+  foreach ($items as $delta => $item) {
+    if (empty($item['name']) && !empty($item['mail'])) {
+      $errors[$field['field_name']][$langcode][$delta][] = array(
+        'error' => 'election_endorser_missing_name',
+        'message' => t('You must specify a name.'),
+      );
+    }
+    if (!empty($item['name']) && empty($item['mail'])) {
+      $errors[$field['field_name']][$langcode][$delta][] = array(
+        'error' => 'election_endorser_missing_mail',
+        'message' => t('You must specify an e-mail address.'),
+      );
+    }
+    if (!empty($item['mail']) && !valid_email_address($item['mail'])) {
+      $errors[$field['field_name']][$langcode][$delta][] = array(
+        'error' => 'election_endorser_invalid_mail',
+        'message' => t('%mail is not a valid e-mail address.', array('%mail' => $item['mail'])),
+      );
+    }
+  }
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ *
+ */
+function election_endorser_field_formatter_info() {
+  $formats = array(
+    'election_endorser_default' => array(
+      'label' => t('Default format'),
+      'description' => t("Display the endorser's name and e-mail address."),
+      'field types' => array('election_endorser'),
+    ),
+  );
+  return $formats;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function election_endorser_field_formatter_view($object_type, $object, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  switch ($display['type']) {
+    case 'election_endorser_default':
+      foreach ($items as $delta => $item) {
+        if (!empty($display['settings']['election_endorser_part'])) {
+          $output = $item[$display['settings']['election_endorser_part']];
+        }
+        else {
+          $output = $item['name'] . ' <' . $item['mail'] . '> ';
+        }
+        $element[$delta] = array('#markup' => check_plain($output));
+      }
+      break;
+  }
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function election_endorser_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  $element['election_endorser_part'] = array(
+    '#title' => t('Endorser part'),
+    '#type' => 'select',
+    '#default_value' => $settings['election_endorser_part'],
+    '#empty_option' => t('Default (name and e-mail)'),
+    '#options' => array(
+      'name' => t('Name'),
+      'mail' => t('E-mail address'),
+    ),
+  );
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function election_endorser_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  if (!empty($settings['election_endorser_part'])) {
+    return t('Part: @part', array('@part' => $settings['election_endorser_part']));
+  }
+
+}
+
+/**
+ * Implement hook_field_is_empty().
+ */
+function election_endorser_field_is_empty($item, $field) {
+  return (empty($item['name']) || empty($item['mail']));
+}
+
+/**
+ * Implements hook_field_settings_form().
+ */
+function election_endorser_field_settings_form() {
+  return array();
+}

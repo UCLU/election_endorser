@@ -1,0 +1,31 @@
+<?php
+/**
+ * @file
+ * Install functions for the Endorser Field module.
+ */
+
+/**
+ * Implements hook_field_schema().
+ */
+function election_endorser_field_schema($field) {
+  return array(
+    'columns' => array(
+      'name' => array(
+        'type' => 'varchar',
+        'description' => 'Name',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+      'mail' => array(
+        'type' => 'varchar',
+        'description' => 'Email address',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+    ),
+    'indexes' => array(
+      'name' => array('name'),
+      'mail' => array('mail'),
+    ),
+  );
+}
